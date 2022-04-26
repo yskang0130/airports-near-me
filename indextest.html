@@ -1,0 +1,323 @@
+<!--credits to
+Derek from https://stackoverflow.com/questions/18883601/function-to-calculate-distance-between-two-coordinates for formula for caculating distance using latitudes and longitudes
+The Coding Train from YouTube for tutorials on JSON and Javascript
+RapidApi for the free AeroDataBox API
+MDN for GeoLocating-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=\, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css"
+          integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA=="
+          crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"
+            integrity="sha512-QVftwZFqvtRNi0ZyCtsznlKSWOStnDORoefr1enyq5mVL4tmKB3S/EnC3rRJcxCPavG10IcrVGSmPh6Qw5lwrg=="
+            crossorigin=""></script>
+    <style>
+        #airportMap {
+            height: 500px;
+        }
+    </style>
+
+
+    <title>Closest Airport</title>
+</head>
+<body>
+    <h1>My Location</h1>
+
+    <p>
+        latitude: <span id="lat"></span>°<br />
+        longitude: <span id="lon"></span>°
+    </p>
+    <form action="/action_page.php">
+        <label for="fname">Zip Code:</label>
+        <input type="text" id="textbox1" name="textbox1"><br><br>
+        <input name="buttonExecute" onclick="zipExecute(document.getElementsByName('textbox1')[0].value)" type="button" value="Search" />
+    </form>
+    <form action="/action_page.php">
+        <label for="fname">ICAO Code:</label>
+        <input type="text" id="textbox2" name="textbox2"><br><br>
+        <input name="buttonExecute" onclick="icaoExecute(document.getElementsByName('textbox2')[0].value)" type="button" value="Search" />
+    </form>
+    
+
+    <div id="airportMap"></div>
+
+    <table class="Airport List">
+        <tr class="bg-info">
+            <th>Airport</th>
+            <th>ICAO Code</th>
+            <th>Name</th>
+            <th>Distance (NM)</th>
+            <th>Nearby Restaurants</th>
+            <th>Nearby Cafe</th>
+            <th>Nearby Attractions</th>
+        </tr>
+
+        <tbody id="myTable">
+        </tbody>
+    </table>
+
+    <table class="Restaurant List">
+        <tr class="bg-info">
+            <th>Point Of Interest</th>
+            <th>Name</th>
+            <th>Address</th>
+            <th>Distance (m)</th>
+            <th>Phone #</th>
+            <th>Website</th>
+        </tr>
+
+        <tbody id="restaurantTable">
+        </tbody>
+    </table>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js">
+    </script>
+
+    <script>
+
+        // Making a map and tiles
+        const mymap = L.map('airportMap').setView([0, 0], 1);
+        const attribution =
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+        const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        const tiles = L.tileLayer(tileUrl, { attribution });
+        tiles.addTo(mymap);
+
+        // Making a marker with a custom icon
+        const issIcon = L.icon({
+            iconUrl: 'iss200.png',
+            iconSize: [50, 50],
+            iconAnchor: [25, 16]
+        });
+        const oneIcon = L.icon({
+            iconUrl: 'one200.png',
+            iconSize: [50, 50],
+            iconAnchor: [25, 16]
+        });
+        const twoIcon = L.icon({
+            iconUrl: 'two200.png',
+            iconSize: [50, 50],
+            iconAnchor: [25, 16]
+        });
+        const threeIcon = L.icon({
+            iconUrl: 'three200.png',
+            iconSize: [50, 50],
+            iconAnchor: [25, 16]
+        });
+        const fourIcon = L.icon({
+            iconUrl: 'four200.png',
+            iconSize: [50, 50],
+            iconAnchor: [25, 16]
+        });
+        const fiveIcon = L.icon({
+            iconUrl: 'five200.png',
+            iconSize: [50, 50],
+            iconAnchor: [25, 16]
+        });
+
+        const marker = L.marker([0, 0], { icon: issIcon }).addTo(mymap);
+        const marker2 = L.marker([0, 0], { icon: oneIcon }).addTo(mymap);
+        const marker3 = L.marker([0, 0], { icon: twoIcon }).addTo(mymap);
+        const marker4 = L.marker([0, 0], { icon: threeIcon }).addTo(mymap);
+        const marker5 = L.marker([0, 0], { icon: fourIcon }).addTo(mymap);
+        const marker6 = L.marker([0, 0], { icon: fiveIcon }).addTo(mymap);
+
+
+
+
+
+        function showOnMap(lat1, lon1, mkr) {
+            mkr.setLatLng([lat1, lon1]);
+        }
+
+
+        let latitude = 50;
+        let longitude = 50;
+
+        function geoFindMe() {
+
+            function success(pos) {
+
+
+                var crd = pos.coords;
+
+                console.log('Your current position is:');
+                console.log(`Latitude : ${crd.latitude}`);
+                console.log(`Longitude: ${crd.longitude}`);
+
+                latitude = crd.latitude;
+                longitude = crd.longitude;
+
+                document.getElementById('lat').textContent = latitude.toFixed(2);
+                document.getElementById('lon').textContent = longitude.toFixed(2);
+                mymap.setView([latitude, longitude], 10);
+                showOnMap(latitude, longitude, marker);
+                getAirports(latitude, longitude);
+
+            }
+
+            function error() {
+                console.log('error');
+            }
+
+            if (!navigator.geolocation) {
+            } else {
+                navigator.geolocation.getCurrentPosition(success, error);
+            }
+
+
+        }
+
+        geoFindMe();
+
+
+        const options = {
+            method: 'GET',
+            headers: {
+                'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
+                'X-RapidAPI-Key': '440d8be30bmsh308a938ec4594cfp1e54a0jsn14b4533513d5'
+            }
+        };
+        async function getAirports(lat, lon) {
+            showOnMap(lat, lon, marker);
+            const response = await fetch(`https://aerodatabox.p.rapidapi.com/airports/search/location/${lat}/${lon}/km/150/5?withFlightInfoOnly=false`, options);
+            const data = await response.json();
+            console.log(data);
+            buildTable(data, lat, lon);
+            displayAirports(data);
+        }
+        const optionsRestaurant = {
+            method: 'GET',
+            headers: {
+                'X-RapidAPI-Host': 'trueway-places.p.rapidapi.com',
+                'X-RapidAPI-Key': '440d8be30bmsh308a938ec4594cfp1e54a0jsn14b4533513d5'
+            }
+        };
+        async function getRestaurants(lat, lon) {
+            const response = await fetch(`https://trueway-places.p.rapidapi.com/FindPlacesNearby?location=${lat}%2C${lon}&type=restaurant&radius=10000&language=en`, optionsRestaurant);
+            const data = await response.json();
+            console.log(data);
+
+            buildRestaurantTable(data);
+        }
+        async function getCafe(lat, lon) {
+            const response = await fetch(`https://trueway-places.p.rapidapi.com/FindPlacesNearby?location=${lat}%2C${lon}&type=cafe&radius=10000&language=en`, optionsRestaurant);
+            const data = await response.json();
+            console.log(data);
+            buildRestaurantTable(data);
+        }
+        async function getAttractions(lat, lon) {
+            const response = await fetch(`https://trueway-places.p.rapidapi.com/FindPlacesNearby?location=${lat}%2C${lon}&type=tourist_attraction&radius=10000&language=en`, optionsRestaurant);
+            const data = await response.json();
+            console.log(data);
+            buildRestaurantTable(data);
+        }
+
+        function buildTable(data, lat, lon) {
+            var table = document.getElementById('myTable')
+            table.innerHTML = "";
+            for (var i = 0; i < 5; i++) {
+                var row = `<tr>
+                                        <td>${i + 1}</td>
+                                        <td>${data.items[i].icao}</td>
+                                        <td>${data.items[i].name}</td>
+                                        <td>${calcCrow(lat, lon, data.items[i].location.lat, data.items[i].location.lon).toFixed(2)}</td>
+                                        <td>
+                                            <form name="nearby" action="javascript:select();" >
+                                            <input name="buttonForMore" onclick="getRestaurants(${data.items[i].location.lat}, ${data.items[i].location.lon});" type="button" value="See More" />
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <form name="nearby" action="javascript:select();" >
+                                            <input name="buttonForMore" onclick="getCafe(${data.items[i].location.lat}, ${data.items[i].location.lon});" type="button" value="See More" />
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <form name="nearby" action="javascript:select();" >
+                                            <input name="buttonForMore" onclick="getAttractions(${data.items[i].location.lat}, ${data.items[i].location.lon});" type="button" value="See More" />
+                                            </form>
+                                        </td>
+                                            </tr>`
+                table.innerHTML += row
+            }
+
+        }
+
+        function buildRestaurantTable(data) {
+            var table = document.getElementById('restaurantTable')
+            table.innerHTML = "";
+            for (var i = 0; i < 10; i++) {
+                var row = `<tr>
+                                           <td>${i + 1}</td>
+                                           <td>${data.results[i].name}</td>
+                                           <td>${data.results[i].address}</td>
+                                           <td>${data.results[i].distance}</td>
+                                           <td>${data.results[i].phone_number}</td>
+                                           <td><a href="${data.results[i].website}">Visit Website</a></td>
+                                           </tr>`
+                table.innerHTML += row
+
+            }
+
+        }
+
+        function displayAirports(data) {
+            showOnMap(data.items[0].location.lat, data.items[0].location.lon, marker2);
+            showOnMap(data.items[1].location.lat, data.items[1].location.lon, marker3);
+            showOnMap(data.items[2].location.lat, data.items[2].location.lon, marker4);
+            showOnMap(data.items[3].location.lat, data.items[3].location.lon, marker5);
+            showOnMap(data.items[4].location.lat, data.items[4].location.lon, marker6);
+        }
+
+        function calcCrow(lat1, lon1, lat2, lon2) {
+            var R = 6371; // km
+            var dLat = toRad(lat2 - lat1);
+            var dLon = toRad(lon2 - lon1);
+            var lat1 = toRad(lat1);
+            var lat2 = toRad(lat2);
+
+            var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            var d = R * c;
+            return d;
+        }
+
+        // Converts numeric degrees to radians and nautical miles
+        function toRad(Value) {
+            return Value * Math.PI / 180 * 0.54;
+        }
+
+        async function zipExecute(zipCode) {
+            const response = await fetch(`https://www.zipcodeapi.com/rest/sw7Az6m9LvgxcLGaPg0AYzHpwiqoV1GObJRmT1Xn3vRrZB6MjyLkTvhDBMdpkfh9/info.json/${zipCode}/degrees`);
+            const data = await response.json();
+            console.log(data);
+            getAirports(data.lat, data.lng);
+        }
+
+        const icaoOptions = {
+            method: 'GET',
+            headers: {
+                'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
+                'X-RapidAPI-Key': '440d8be30bmsh308a938ec4594cfp1e54a0jsn14b4533513d5'
+            }
+        };
+
+        async function icaoExecute(icaoCode) {
+            const response = await fetch(`https://aerodatabox.p.rapidapi.com/airports/icao/${icaoCode}`, icaoOptions);
+            const data = await response.json();
+            console.log(data);
+            getAirports(data.location.lat, data.location.lon);
+        }
+
+
+    </script>
+</body>
+</html>
